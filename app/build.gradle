@@ -1,0 +1,37 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 23
+    buildToolsVersion "23.0.2"
+
+    defaultConfig {
+        applicationId "com.github.naofum.blueskyreader"
+        minSdkVersion 9
+        targetSdkVersion 23
+        multiDexEnabled true
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
+        }
+    }
+}
+
+repositories {
+    maven { url 'https://github.com/psiegman/mvn-repo/raw/master/releases' }
+}
+dependencies {
+    compile('nl.siegmann.epublib:epublib-core:3.1') {
+        exclude group: 'xmlpull', module: 'xmlpull'
+    }
+    //    compile 'org.slf4j:slf4j-android:1.7.19'
+    compile 'com.android.support:appcompat-v7:23.1.1'
+    compile 'org.jsoup:jsoup:1.8.3'
+    compile 'com.google.android.gms:play-services-ads:8.4.0'
+}
+
+//configurations {
+//    all*.exclude group: 'com.android.support', module: 'support-v4'
+//}
