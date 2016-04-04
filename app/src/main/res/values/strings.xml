@@ -73,7 +73,8 @@
     <string name="description2">Created by BlueSky Reader https://play.google.com/store/apps/details?id=com.github.naofum.blueskyreader</string>
     <string name="save_to">Save to</string>
     <string name="file_name">Output File Name</string>
+    <string name="convert_gaiji">Convert Gaiji to Character</string>
     <string name="progress">Progress</string>
     <string name="create">CREATE</string>
-    <string name="interstitial_ad_unit_id" translatable="false">ca-app-pub-9209419102968336/1714920408</string>
+    <string name="interstitial_ad_unit_id" translatable="false">ca-app-pub-9209419102968336/8535229601</string>
 </resources>

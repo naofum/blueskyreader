@@ -6,6 +6,7 @@ import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
 import android.widget.TextView;
@@ -14,6 +15,7 @@ import com.google.android.gms.ads.AdListener;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.InterstitialAd;
 
+import org.apache.commons.lang.StringUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -64,6 +66,7 @@ public class AozoraReaderCreateEpub extends AppCompatActivity {
     static private RadioButton radioButtonDir2;
     static private RadioButton radioButtonName1;
     static private RadioButton radioButtonName2;
+    static private CheckBox checkBox;
     static private ProgressBar progress;
     static private TextView textView;
     static private Button button;
@@ -118,6 +121,7 @@ public class AozoraReaderCreateEpub extends AppCompatActivity {
         radioButtonName1.setText(fileName);
         radioButtonName2 = (RadioButton)findViewById(R.id.radioButtonName2);
         radioButtonName2.setText(authorName + "_" + fileName);
+        checkBox = (CheckBox)findViewById(R.id.checkBox);
         button = (Button)findViewById(R.id.button);
 
         Button button = (Button)findViewById(R.id.button);
@@ -224,6 +228,18 @@ public class AozoraReaderCreateEpub extends AppCompatActivity {
                             String[] pathElements = xhtmlLoc.split("/");
                             String fileName = pathElements[pathElements.length - 1];
                             line = line.replaceAll(xhtmlLoc, fileName);
+
+                            if (checkBox.isChecked()) {
+                                Pattern gaiji_pattern = Pattern.compile("<img src=\"" + fileName + "\" .+? class=\"gaiji\" />");
+                                Matcher gaiji_matcher = gaiji_pattern.matcher(line);
+                                if (gaiji_matcher.find()) {
+                                    String replace = gaiji_matcher.group();
+                                    if (ConvertUtil.convert(fileName) != null) {
+                                        line = StringUtils.replace(line, replace, ConvertUtil.convert(fileName));
+//                                        line = line.replaceAll(replace, ConvertUtil.convert(fileName));
+                                    }
+                                }
+                            }
                         }
                         writer.write(line);
                         writer.newLine();

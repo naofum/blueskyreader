@@ -73,6 +73,7 @@
     <string name="description2">Created by BlueSky Reader https://play.google.com/store/apps/details?id=com.github.naofum.blueskyreader</string>
     <string name="save_to">保存先</string>
     <string name="file_name">ファイル名</string>
+    <string name="convert_gaiji">外字を文字に変換する</string>
     <string name="progress">進捗</string>
     <string name="create">作成</string>
 </resources>

@@ -54,12 +54,14 @@ public class AozoraReader extends AppCompatActivity {
 
 		ArrayAdapter<String> mAdapter = new ArrayAdapter<String>(this, R.layout.main, R.id.main_row);
 		c.moveToLast();
-		do {
-			String addStr = new String();
-			addStr = c.getString(1) + "　" + c.getString(2);
-			mAdapter.add(addStr);	
-		} while (c.moveToPrevious());
-		mainListView.setAdapter(mAdapter);
+		if (c.getColumnCount() > 1) {
+			do {
+				String addStr = new String();
+				addStr = c.getString(1) + "　" + c.getString(2);
+				mAdapter.add(addStr);	
+			} while (c.moveToPrevious());
+			mainListView.setAdapter(mAdapter);
+		}
 		// finally close cursor.
 		c.close();
 	}
