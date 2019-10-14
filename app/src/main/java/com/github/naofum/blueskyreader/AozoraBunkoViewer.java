@@ -11,15 +11,15 @@ import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import android.app.Activity;
 import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.webkit.WebView;
 
-public class AozoraBunkoViewer extends Activity {
+public class AozoraBunkoViewer extends AppCompatActivity {
 
 	public static final String KEY_AUTHORID = "Viewer_AUTHORID";
 	public static final String KEY_WORKSID  = "Viewer_WORKSID";
@@ -55,7 +55,7 @@ public class AozoraBunkoViewer extends Activity {
 			if (bookmarked == true) {
 				xhtmlUrl = extras.getString(AozoraBunkoViewer.KEY_LOCATION); 
 			} else {
-				String location = "http://www.aozora.gr.jp/cards/" + extras.getString(AozoraBunkoViewer.KEY_LOCATION);
+				String location = "https://www.aozora.gr.jp/cards/" + extras.getString(AozoraBunkoViewer.KEY_LOCATION);
 				xhtmlUrl = getXHTMLURLStringAsync(location, authorId, worksId);
 				AozoraReaderBookmarksDbAdapter mDbAdapter = new AozoraReaderBookmarksDbAdapter(this);
 				mDbAdapter.open();
@@ -130,7 +130,7 @@ public class AozoraBunkoViewer extends Activity {
 				Matcher xhtml_matcher = xhtml_pattern.matcher(line);
 				if (xhtml_matcher.find()) {
 					String xhtmlLoc = xhtml_matcher.group(1);
-					Pattern card_pattern = Pattern.compile("(http://www.aozora.gr.jp/cards/\\d+)/card\\d+\\.html");
+					Pattern card_pattern = Pattern.compile("(https://www.aozora.gr.jp/cards/\\d+)/card\\d+\\.html");
 					Matcher card_matcher = card_pattern.matcher(urlStr);
 					if (card_matcher.find()) {
 						String base_card = card_matcher.group(1);

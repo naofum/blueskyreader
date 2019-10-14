@@ -198,7 +198,7 @@ public class AozoraReaderCreateEpub extends AppCompatActivity {
                     BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(Environment.getExternalStorageDirectory().getPath() + DOWNLOAD_PATH + DOWNLOAD_TMP), "UTF-8"));
 
                     String line;
-                    Pattern card_pattern = Pattern.compile("(http://www.aozora.gr.jp/cards/\\d+/files)/\\d+_\\d+\\.html");
+                    Pattern card_pattern = Pattern.compile("(https://www.aozora.gr.jp/cards/\\d+/files)/\\d+_\\d+\\.html");
                     Matcher card_matcher = card_pattern.matcher(urlStr);
                     String base_card = "";
                     if (card_matcher.find()) {

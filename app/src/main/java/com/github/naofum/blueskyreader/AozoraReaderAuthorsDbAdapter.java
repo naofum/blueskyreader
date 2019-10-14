@@ -1,7 +1,5 @@
 package com.github.naofum.blueskyreader;
 
-// import java.util.ArrayList;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -108,16 +106,16 @@ public class AozoraReaderAuthorsDbAdapter {
     	int index = 0;
     	
     	ArrayList<String> url_array = new ArrayList<String>();
-    	url_array.add("http://www.aozora.gr.jp/index_pages/person_a.html");
-    	url_array.add("http://www.aozora.gr.jp/index_pages/person_ka.html");
-    	url_array.add("http://www.aozora.gr.jp/index_pages/person_sa.html");
-    	url_array.add("http://www.aozora.gr.jp/index_pages/person_ta.html");
-    	url_array.add("http://www.aozora.gr.jp/index_pages/person_ha.html");
-    	url_array.add("http://www.aozora.gr.jp/index_pages/person_ma.html");
-    	url_array.add("http://www.aozora.gr.jp/index_pages/person_ya.html");
-    	url_array.add("http://www.aozora.gr.jp/index_pages/person_ra.html");
-    	url_array.add("http://www.aozora.gr.jp/index_pages/person_wa.html");
-    	url_array.add("http://www.aozora.gr.jp/index_pages/person_zz.html");
+    	url_array.add("https://www.aozora.gr.jp/index_pages/person_a.html");
+    	url_array.add("https://www.aozora.gr.jp/index_pages/person_ka.html");
+    	url_array.add("https://www.aozora.gr.jp/index_pages/person_sa.html");
+    	url_array.add("https://www.aozora.gr.jp/index_pages/person_ta.html");
+    	url_array.add("https://www.aozora.gr.jp/index_pages/person_ha.html");
+    	url_array.add("https://www.aozora.gr.jp/index_pages/person_ma.html");
+    	url_array.add("https://www.aozora.gr.jp/index_pages/person_ya.html");
+    	url_array.add("https://www.aozora.gr.jp/index_pages/person_ra.html");
+    	url_array.add("https://www.aozora.gr.jp/index_pages/person_wa.html");
+    	url_array.add("https://www.aozora.gr.jp/index_pages/person_zz.html");
 
     	for (String url:url_array) {
     		retvalue = (retvalue & createAuthorsDBAsync(url, index));

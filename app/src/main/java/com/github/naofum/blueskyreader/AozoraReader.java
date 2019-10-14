@@ -24,7 +24,7 @@ public class AozoraReader extends AppCompatActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
     	super.onCreate(savedInstanceState);
-    	
+
     	this.mDbAdapter = new AozoraReaderBookmarksDbAdapter(this);
 		this.mDbAdapter.open();
 		Cursor c = this.mDbAdapter.fetchAllBookmarks();

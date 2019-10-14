@@ -179,7 +179,7 @@ public class AozoraReaderWorksDbAdapter {
 
 	public void updateWorksDB(long authorId) {
 		String searchUrl = new String();
-		searchUrl = "http://www.aozora.gr.jp/index_pages/person" + authorId + ".html";
+		searchUrl = "https://www.aozora.gr.jp/index_pages/person" + authorId + ".html";
 		createWorksDBAsync(searchUrl, authorId);
 	}
 
