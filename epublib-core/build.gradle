@@ -1,0 +1,42 @@
+//plugins {
+//    id 'java-library'
+//}
+apply plugin: 'com.android.library'
+
+android {
+    namespace 'nl.siegmann.epublib'
+    compileSdk 35
+
+    defaultConfig {
+        minSdk 21
+        targetSdk 35
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        coreLibraryDesugaringEnabled true
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+}
+
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.mockito:mockito-core:5.14.0'
+    testImplementation 'net.sf.kxml:kxml2:2.3.0'
+    androidTestImplementation 'com.android.support.test:runner:1.0.2'
+    implementation 'stax:stax-api:1.0.1'
+    implementation 'org.slf4j:slf4j-android:1.7.36'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.2'
+}

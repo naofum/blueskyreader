@@ -2,8 +2,15 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
       <module fileurl="file://$PROJECT_DIR$/blueskyreader.iml" filepath="$PROJECT_DIR$/blueskyreader.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/blueskyreader.app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/blueskyreader.app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/blueskyreader.app.androidTest.iml" filepath="$PROJECT_DIR$/.idea/modules/app/blueskyreader.app.androidTest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/blueskyreader.app.main.iml" filepath="$PROJECT_DIR$/.idea/modules/app/blueskyreader.app.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/blueskyreader.app.unitTest.iml" filepath="$PROJECT_DIR$/.idea/modules/app/blueskyreader.app.unitTest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/epublib-core/blueskyreader.epublib-core.iml" filepath="$PROJECT_DIR$/.idea/modules/epublib-core/blueskyreader.epublib-core.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/epublib-core/blueskyreader.epublib-core.androidTest.iml" filepath="$PROJECT_DIR$/.idea/modules/epublib-core/blueskyreader.epublib-core.androidTest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/epublib-core/blueskyreader.epublib-core.main.iml" filepath="$PROJECT_DIR$/.idea/modules/epublib-core/blueskyreader.epublib-core.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/epublib-core/blueskyreader.epublib-core.unitTest.iml" filepath="$PROJECT_DIR$/.idea/modules/epublib-core/blueskyreader.epublib-core.unitTest.iml" />
     </modules>
   </component>
 </project>

@@ -7,17 +7,32 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import android.content.Intent;
+import android.net.http.SslError;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
-import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.webkit.SslErrorHandler;
 import android.webkit.WebView;
+import android.webkit.WebViewClient;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 
 public class AozoraBunkoViewer extends AppCompatActivity {
 
@@ -44,18 +59,23 @@ public class AozoraBunkoViewer extends AppCompatActivity {
 		// Pick Up bundle.
 		Bundle extras = getIntent().getExtras();
 		if (extras != null) {
+			boolean bookmarked = extras.getBoolean (AozoraBunkoViewer.KEY_BOOKMARKED);
+
 			authorId = extras.getLong(AozoraBunkoViewer.KEY_AUTHORID);
-			worksId  = extras.getLong(AozoraBunkoViewer.KEY_WORKSID);
+			worksId = extras.getLong(AozoraBunkoViewer.KEY_WORKSID);
 			authorName = extras.getString (AozoraBunkoViewer.KEY_AUTHORNAME);
 			worksName  = extras.getString(AozoraBunkoViewer.KEY_WORKSNAME);
-				
-			boolean bookmarked = extras.getBoolean (AozoraBunkoViewer.KEY_BOOKMARKED);
+			// authorId become 0 when authorId stored not correctly
 
 //			String xhtmlUrl;
 			if (bookmarked == true) {
 				xhtmlUrl = extras.getString(AozoraBunkoViewer.KEY_LOCATION); 
 			} else {
-				String location = "https://www.aozora.gr.jp/cards/" + extras.getString(AozoraBunkoViewer.KEY_LOCATION);
+				String location = extras.getString(AozoraBunkoViewer.KEY_LOCATION);
+				//TODO check?
+				if (!location.startsWith("http")) {
+					location = "https://www.aozora.gr.jp/cards/" + location;
+				}
 				xhtmlUrl = getXHTMLURLStringAsync(location, authorId, worksId);
 				AozoraReaderBookmarksDbAdapter mDbAdapter = new AozoraReaderBookmarksDbAdapter(this);
 				mDbAdapter.open();
@@ -69,6 +89,15 @@ public class AozoraBunkoViewer extends AppCompatActivity {
 
 			WebView webview = (WebView)findViewById(R.id.aozora_webview);
 			webview.getSettings().setJavaScriptEnabled(true);
+			//TODO for old Android compatibility
+			if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+				webview.setWebViewClient(new WebViewClient() {
+					@Override
+					public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+						handler.proceed();
+					}
+				});
+			}
 			webview.loadUrl(xhtmlUrl);
 		}
 		
@@ -94,11 +123,50 @@ public class AozoraBunkoViewer extends AppCompatActivity {
 
 	private String getXHTMLURLString(String urlStr, long authorId, long worksId) {
 		String retStr = null;
-		
+
+		//TODO for old Android compatibility
+		SSLContext sslContext = null;
+		try {
+			TrustManager[] tm = {
+					new X509TrustManager() {
+						@Override
+						public void checkClientTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
+
+						}
+
+						@Override
+						public void checkServerTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
+
+						}
+
+						@Override
+						public X509Certificate[] getAcceptedIssuers() {
+							return new X509Certificate[0];
+						}
+					}
+			};
+			sslContext = SSLContext.getInstance("TLS");
+			sslContext.init(null, tm, null);
+			HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
+				@Override
+				public boolean verify(String s, SSLSession sslSession) {
+					return true;
+				}
+			});
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
 		URL url;
 		try {
 			url = new URL(urlStr);
 			HttpURLConnection http = (HttpURLConnection) url.openConnection();
+			if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+				http = (HttpsURLConnection) http;
+				((HttpsURLConnection) http).setSSLSocketFactory(sslContext.getSocketFactory());
+			}
 			http.setRequestMethod("GET");
 			http.connect();
 			InputStream in = http.getInputStream();

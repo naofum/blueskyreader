@@ -7,6 +7,8 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
@@ -19,7 +21,16 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.database.sqlite.SQLiteStatement;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.util.Log;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import java.security.cert.X509Certificate;
 
 public class AozoraReaderAuthorsDbAdapter {
 
@@ -53,14 +64,14 @@ public class AozoraReaderAuthorsDbAdapter {
         @Override
         public void onCreate(SQLiteDatabase db) {
         	// TODO
-        	Log.i(TAG, DATABASE_CREATE);
+        	Log.d(TAG, DATABASE_CREATE);
             db.execSQL(DATABASE_CREATE);
         }
 
         @Override
         public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
             // TODO
-        	Log.i(TAG, "enter onUpgrade()");
+        	Log.d(TAG, "enter onUpgrade()");
         	db.execSQL("DROP TABLE IF EXISTS " + DATABASE_TABLE);
             onCreate(db);
         }
@@ -145,11 +156,50 @@ public class AozoraReaderAuthorsDbAdapter {
 
     public boolean createAuthorsDB(String search_url, int index) {
     	boolean retvalue = true;
-    	
-    	try {
+
+		//TODO for old Android compatibility
+		SSLContext sslContext = null;
+		try {
+			TrustManager[] tm = {
+					new X509TrustManager() {
+						@Override
+						public void checkClientTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
+
+						}
+
+						@Override
+						public void checkServerTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
+
+						}
+
+						@Override
+						public X509Certificate[] getAcceptedIssuers() {
+							return new X509Certificate[0];
+						}
+					}
+			};
+			sslContext = SSLContext.getInstance("TLS");
+			sslContext.init(null, tm, null);
+			HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
+				@Override
+				public boolean verify(String s, SSLSession sslSession) {
+					return true;
+				}
+			});
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		try {
     		URL url = new URL(search_url);
     		HttpURLConnection http = (HttpURLConnection) url.openConnection();
-    		http.setRequestMethod("GET");
+			if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+				http = (HttpsURLConnection) http;
+				((HttpsURLConnection) http).setSSLSocketFactory(sslContext.getSocketFactory());
+			}
+			http.setRequestMethod("GET");
 			http.connect();
 			InputStream in = http.getInputStream();
 			String charEncoding = http.getContentEncoding();
@@ -211,7 +261,7 @@ public class AozoraReaderAuthorsDbAdapter {
     
     private void insertAuthors(int authorId, int topletterId, String authorName) {
     	SQLiteDatabase db = mDbHelper.getWritableDatabase();
-    	Log.i(TAG, "Top letter ID " + topletterId + " author_id " + authorId + " author name " + authorName);
+    	Log.d(TAG, "Top letter ID " + topletterId + " author_id " + authorId + " author name " + authorName);
 
     	if (authorInfoExist(authorId, db) == true) {
     		return; // Here is duplication check. Since author Id is guaranteed as uniquely, so nothing to do is here.

@@ -1,19 +1,25 @@
 package com.github.naofum.blueskyreader;
 
+import android.content.ContentResolver;
+import android.content.ContentValues;
+import android.graphics.Color;
+import android.graphics.PorterDuff;
+import android.media.MediaScannerConnection;
+import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
-import android.support.v7.app.AppCompatActivity;
+import android.os.Handler;
+import android.provider.MediaStore;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
 import android.widget.TextView;
-
-import com.google.android.gms.ads.AdListener;
-import com.google.android.gms.ads.AdRequest;
-import com.google.android.gms.ads.InterstitialAd;
+import androidx.appcompat.app.AppCompatActivity;
 
 import org.apache.commons.lang.StringUtils;
 import org.jsoup.Jsoup;
@@ -23,19 +29,37 @@ import org.jsoup.select.Elements;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.security.NoSuchAlgorithmException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import javax.xml.namespace.QName;
+
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 
 import nl.siegmann.epublib.domain.Author;
 import nl.siegmann.epublib.domain.Book;
@@ -43,6 +67,7 @@ import nl.siegmann.epublib.domain.Resource;
 import nl.siegmann.epublib.domain.TOCReference;
 import nl.siegmann.epublib.domain.TableOfContents;
 import nl.siegmann.epublib.epub.EpubWriter;
+import nl.siegmann.epublib.service.MediatypeService;
 
 public class AozoraReaderCreateEpub extends AppCompatActivity {
 
@@ -66,34 +91,20 @@ public class AozoraReaderCreateEpub extends AppCompatActivity {
     static private RadioButton radioButtonDir2;
     static private RadioButton radioButtonName1;
     static private RadioButton radioButtonName2;
+    static private RadioButton radioButtonName3;
     static private CheckBox checkBox;
+    static private CheckBox checkBox2;
     static private ProgressBar progress;
     static private TextView textView;
     static private Button button;
 
-    InterstitialAd mInterstitialAd;
+    final Handler handler = new Handler();
 
     /** Called when the activity is first created. */
     @Override
     public void onCreate(Bundle savedInstanceState) {
     	super.onCreate(savedInstanceState);
 		setContentView(R.layout.epub);
-
-        mInterstitialAd = new InterstitialAd(this);
-        mInterstitialAd.setAdUnitId(getString(R.string.interstitial_ad_unit_id));
-        AdRequest adRequest = new AdRequest.Builder()
-                .addTestDevice(AdRequest.DEVICE_ID_EMULATOR)
-                .build();
-        mInterstitialAd.loadAd(adRequest);
-
-        mInterstitialAd.setAdListener(new AdListener() {
-            @Override
-            public void onAdLoaded() {
-                if (mInterstitialAd.isLoaded()) {
-                    mInterstitialAd.show();
-                }
-            }
-        });
 
         progress = (ProgressBar)findViewById(R.id.progressBar);
         textView = (TextView)findViewById(R.id.textView);
@@ -112,16 +123,19 @@ public class AozoraReaderCreateEpub extends AppCompatActivity {
         }
 
         radioButtonDir1 = (RadioButton)findViewById(R.id.radioButtonDir1);
-        radioButtonDir1.setText(Environment.getExternalStorageDirectory().getPath() + DOWNLOAD_PATH);
+        radioButtonDir1.setText(getFilesDir() + DOWNLOAD_PATH);
         radioButtonDir2 = (RadioButton)findViewById(R.id.radioButtonDir2);
-        radioButtonDir2.setText(Environment.getExternalStorageDirectory().getPath() + DOWNLOAD_PATH2);
+        radioButtonDir2.setText(getFilesDir() + DOWNLOAD_PATH2);
         radioButtonDir1.setEnabled(false);
         radioButtonDir2.setEnabled(false);
         radioButtonName1 = (RadioButton)findViewById(R.id.radioButtonName1);
         radioButtonName1.setText(fileName);
         radioButtonName2 = (RadioButton)findViewById(R.id.radioButtonName2);
         radioButtonName2.setText(authorName + "_" + fileName);
+        radioButtonName3 = (RadioButton)findViewById(R.id.radioButtonName3);
+        radioButtonName3.setText(authorName + "_" + worksName + "_" + fileName);
         checkBox = (CheckBox)findViewById(R.id.checkBox);
+        checkBox2 = (CheckBox)findViewById(R.id.checkBox2);
         button = (Button)findViewById(R.id.button);
 
         Button button = (Button)findViewById(R.id.button);
@@ -143,7 +157,11 @@ public class AozoraReaderCreateEpub extends AppCompatActivity {
 
             @Override
             protected void onProgressUpdate(Integer... values) {
-                progress.setProgress(values[0]);
+                if (values[0] < 0) {
+                    progress.getProgressDrawable().setColorFilter(Color.RED, PorterDuff.Mode.SRC_IN);
+                } else {
+                    progress.setProgress(values[0]);
+                }
             }
 
             @Override
@@ -151,6 +169,7 @@ public class AozoraReaderCreateEpub extends AppCompatActivity {
                 super.onPreExecute();
                 textView.setText(R.string.parsing_xhtml);
                 button.setEnabled(false);
+                progress.getProgressDrawable().clearColorFilter();
             }
 
             @Override
@@ -171,12 +190,56 @@ public class AozoraReaderCreateEpub extends AppCompatActivity {
             private List<String> getResourceURLString(String urlStr) {
                 String retStr = null;
                 List<String> retList = new ArrayList<String>();
+                int idnum = 1;
 
+                // create work directory
+                File file = new File(getFilesDir() + DOWNLOAD_PATH);
+                file.mkdirs();
                 publishProgress(0);
+
+                //TODO for old Android compatibility
+                SSLContext sslContext = null;
+                try {
+                    TrustManager[] tm = {
+                            new X509TrustManager() {
+                                @Override
+                                public void checkClientTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
+
+                                }
+
+                                @Override
+                                public void checkServerTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
+
+                                }
+
+                                @Override
+                                public X509Certificate[] getAcceptedIssuers() {
+                                    return new X509Certificate[0];
+                                }
+                            }
+                    };
+                    sslContext = SSLContext.getInstance("TLS");
+                    sslContext.init(null, tm, null);
+                    HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
+                        @Override
+                        public boolean verify(String s, SSLSession sslSession) {
+                            return true;
+                        }
+                    });
+                } catch (NoSuchAlgorithmException e) {
+                    e.printStackTrace();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
                 URL url;
                 try {
                     url = new URL(urlStr);
                     HttpURLConnection http = (HttpURLConnection) url.openConnection();
+                    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                        http = (HttpsURLConnection) http;
+                        ((HttpsURLConnection) http).setSSLSocketFactory(sslContext.getSocketFactory());
+                    }
                     http.setRequestMethod("GET");
                     http.connect();
                     InputStream in = http.getInputStream();
@@ -195,7 +258,7 @@ public class AozoraReaderCreateEpub extends AppCompatActivity {
                     } else {
                         reader = new BufferedReader(new InputStreamReader(in, charEncoding));
                     }
-                    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(Environment.getExternalStorageDirectory().getPath() + DOWNLOAD_PATH + DOWNLOAD_TMP), "UTF-8"));
+                    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(getFilesDir() + DOWNLOAD_PATH + DOWNLOAD_TMP), "UTF-8"));
 
                     String line;
                     Pattern card_pattern = Pattern.compile("(https://www.aozora.gr.jp/cards/\\d+/files)/\\d+_\\d+\\.html");
@@ -217,6 +280,20 @@ public class AozoraReaderCreateEpub extends AppCompatActivity {
                             retStr = new String();
                             retStr = String.format("%s/%s", base_card, "../../aozora.css");
                             retList.add(retStr);
+                        }
+                        if (line.indexOf("href=\"../../default.css\"") >= 0) {
+                            line = line.replaceAll("../../default.css", "default.css");
+                            retStr = new String();
+                            retStr = String.format("%s/%s", base_card, "../../default.css");
+                            retList.add(retStr);
+                        }
+                        if (line.indexOf("<h1 ") >= 0 && line.indexOf(" id=") < 0) {
+                            line = line.replaceAll("<h1 ", "<h1 id=\"ops" + String.valueOf(idnum++) + "\" ");
+                        }
+                        if (checkBox2.isChecked()) {
+                            if (line.indexOf("<div ") >= 0 && line.indexOf(" id=") < 0) {
+                                line = line.replaceAll("<div ", "<div id=\"id_" + String.valueOf(idnum++) + "\" ");
+                            }
                         }
                         Matcher xhtml_matcher = xhtml_pattern.matcher(line);
                         while (xhtml_matcher.find()) {
@@ -252,9 +329,11 @@ public class AozoraReaderCreateEpub extends AppCompatActivity {
                 } catch (MalformedURLException e) {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
+                    publishProgress(-1);
                 } catch (IOException e) {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
+                    publishProgress(-1);
                 }
 
                 return retList;
@@ -266,13 +345,18 @@ public class AozoraReaderCreateEpub extends AppCompatActivity {
     }
 
     private List<TOCReference> createTOC(String urlStr) {
-        textView.setText(R.string.creating_toc);
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                textView.setText(R.string.creating_toc);
+            }
+        });
         List<TOCReference> references = new ArrayList<TOCReference>();
         try {
-            InputStreamReader in = new InputStreamReader(new FileInputStream(Environment.getExternalStorageDirectory().getPath() + DOWNLOAD_PATH + DOWNLOAD_TMP), "UTF-8");
+            InputStreamReader in = new InputStreamReader(new FileInputStream(getFilesDir() + DOWNLOAD_PATH + DOWNLOAD_TMP), "UTF-8");
             Resource resource = new Resource(in, "chapter1.html");
 
-            Document document = Jsoup.parse(new FileInputStream(Environment.getExternalStorageDirectory().getPath() + DOWNLOAD_PATH + DOWNLOAD_TMP), "UTF-8", Environment.getExternalStorageDirectory().getPath() + "/");
+            Document document = Jsoup.parse(new FileInputStream(getFilesDir() + DOWNLOAD_PATH + DOWNLOAD_TMP), "UTF-8", getFilesDir() + "/");
             Elements elements = document.select(".midashi_anchor");
 
             int root_level = 3;
@@ -321,7 +405,11 @@ public class AozoraReaderCreateEpub extends AppCompatActivity {
 
             @Override
             protected void onProgressUpdate(Integer... values) {
-                progress.setProgress(values[0]);
+                if (values[0] < 0) {
+                    progress.getProgressDrawable().setColorFilter(Color.RED, PorterDuff.Mode.SRC_IN);
+                } else {
+                    progress.setProgress(values[0]);
+                }
             }
 
             @Override
@@ -329,6 +417,7 @@ public class AozoraReaderCreateEpub extends AppCompatActivity {
                 super.onPreExecute();
                 textView.setText(R.string.creating_epub);
                 button.setEnabled(false);
+                progress.getProgressDrawable().clearColorFilter();
             }
 
             @Override
@@ -336,31 +425,91 @@ public class AozoraReaderCreateEpub extends AppCompatActivity {
                 super.onPostExecute(result);
                 textView.setText(R.string.created_epub);
                 button.setEnabled(true);
+                button.setText(R.string.close);
+                button.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        finish();
+//                        if (getOnBackPressedDispatcher().hasEnabledCallbacks()) {
+//                            getOnBackPressedDispatcher().onBackPressed();
+//                        }
+                    }
+                });
             }
 
             private void createBook(String... urlStr) {
                 List<TOCReference> references = createTOC(urlStr[0]);
                 TableOfContents tableOfContents = new TableOfContents(references);
+
+                //TODO for old Android compatibility
+                SSLContext sslContext = null;
                 try {
-                    InputStreamReader in = new InputStreamReader(new FileInputStream(Environment.getExternalStorageDirectory().getPath() + DOWNLOAD_PATH + DOWNLOAD_TMP), "UTF-8");
+                    TrustManager[] tm = {
+                            new X509TrustManager() {
+                                @Override
+                                public void checkClientTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
+
+                                }
+
+                                @Override
+                                public void checkServerTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
+
+                                }
+
+                                @Override
+                                public X509Certificate[] getAcceptedIssuers() {
+                                    return new X509Certificate[0];
+                                }
+                            }
+                    };
+                    sslContext = SSLContext.getInstance("TLS");
+                    sslContext.init(null, tm, null);
+                    HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
+                        @Override
+                        public boolean verify(String s, SSLSession sslSession) {
+                            return true;
+                        }
+                    });
+                } catch (NoSuchAlgorithmException e) {
+                    e.printStackTrace();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+                try {
+                    InputStreamReader in = new InputStreamReader(new FileInputStream(getFilesDir() + DOWNLOAD_PATH + DOWNLOAD_TMP), "UTF-8");
                     Book book = new Book();
-                    book.getMetadata().addAuthor(new Author(authorName));
+                    book.getMetadata().addAuthor(new Author(authorName.trim()));
                     book.getMetadata().addTitle(worksName);
+                    book.getMetadata().addPublisher("青空文庫");
                     book.getMetadata().setLanguage("ja");
+                    Map<QName, String> modified = new HashMap<>();
+                    Date current = new Date();
+                    SimpleDateFormat sf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+                    QName qName = new QName("dcterms:modified");
+                    modified.put(qName, sf.format(current));
+                    book.getMetadata().setOtherProperties(modified);
                     List<String> descriptions = new ArrayList<String>();
                     descriptions.add(getString(R.string.description1));
                     descriptions.add(getString(R.string.description2));
                     book.getMetadata().setDescriptions(descriptions);
 //            book.getMetadata().setCoverImage(new Resource(Simple1.class.getResourceAsStream("/book1/test_cover.png"), "cover.png"));
                     Resource resource = new Resource(in, "chapter1.html");
+                    resource.setMediaType(MediatypeService.XHTML);
 //            resource.setInputEncoding("Shift_JIS");
                     book.addSection(getString(R.string.section_body), resource);
+                    TOCReference tocReference = new TOCReference(worksName, resource);
+                    tableOfContents.addTOCReference(tocReference);
                     book.setTableOfContents(tableOfContents);
                     for (int i = 1; i < urlStr.length; i++) {
-                        Integer progress = 50 + i * 50 / urlStr.length;
+                        Integer progress = 50 + i * 25 / urlStr.length;
                         publishProgress(progress);
                         URL urlRes = new URL(urlStr[i]);
                         HttpURLConnection httpRes = (HttpURLConnection) urlRes.openConnection();
+                        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                            httpRes = (HttpsURLConnection) httpRes;
+                            ((HttpsURLConnection) httpRes).setSSLSocketFactory(sslContext.getSocketFactory());
+                        }
                         httpRes.setRequestMethod("GET");
                         httpRes.connect();
                         InputStream inRes = null;
@@ -372,7 +521,8 @@ public class AozoraReaderCreateEpub extends AppCompatActivity {
                                 book.getResources().add(new Resource(inRes, fileName));
                             }
                         } catch (IOException e) {
-                            e.printStackTrace();
+//                            e.printStackTrace();
+                            throw new RuntimeException(e);
                         } finally {
                             if (inRes != null) {
                                 inRes.close();
@@ -383,19 +533,102 @@ public class AozoraReaderCreateEpub extends AppCompatActivity {
                     String epubName = "";
                     if (radioButtonName1.isChecked()) {
                         epubName = radioButtonName1.getText().toString();
-                    } else {
+                    } else if (radioButtonName2.isChecked()) {
                         epubName = radioButtonName2.getText().toString();
+                    } else {
+                        epubName = radioButtonName3.getText().toString();
                     }
                     EpubWriter epubWriter = new EpubWriter();
-                    epubWriter.write(book, new FileOutputStream(Environment.getExternalStorageDirectory().getPath() + DOWNLOAD_PATH + "/" + epubName));
+                    epubWriter.write(book, new FileOutputStream(getFilesDir() + DOWNLOAD_PATH + "/" + epubName));
                     in.close();
+
+                    publishProgress(90);
+                    boolean needRetry = false;
+                    try {
+                        storeMedia(getFilesDir() + DOWNLOAD_PATH + File.separator, epubName, epubName);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        needRetry = true;
+                    }
+
+                    if (needRetry) {
+                        Log.d("CreateEpub", "Retrying store media");
+                        final String epub = epubName;
+                        MediaScannerConnection.scanFile(getApplicationContext(), new String[] {Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath()}, new String[]{"application/epub+zip"}, new MediaScannerConnection.OnScanCompletedListener() {
+                            @Override
+                            public void onScanCompleted(String path, Uri uri) {
+                                storeMedia(getFilesDir() + DOWNLOAD_PATH + File.separator, epub, epub);
+                            }
+                        });
+                    }
+
                     publishProgress(100);
                 } catch (IOException e) {
                     e.printStackTrace();
                     // TODO
+                    publishProgress(-1);
                 }
 
             }
+
+            private void storeMedia(String inputPath, String inputFile, String outputPath) {
+                String download_path = Environment.DIRECTORY_DOWNLOADS.substring(Environment.DIRECTORY_DOWNLOADS.lastIndexOf("/") + 1);
+                ContentValues contentValues = new ContentValues();
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    contentValues.put(MediaStore.Audio.Media.RELATIVE_PATH, download_path);
+                }
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+                    contentValues.put(MediaStore.Audio.Media.ALBUM, outputPath);
+                    contentValues.put(MediaStore.Audio.Media.TITLE, inputFile);
+                }
+                contentValues.put(MediaStore.Audio.Media.DISPLAY_NAME, inputFile);
+                contentValues.put(MediaStore.Audio.Media.MIME_TYPE, "application/epub+zip");
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    contentValues.put(MediaStore.Audio.Media.IS_PENDING, 1);
+                }
+                ContentResolver resolver = getContentResolver();
+                Uri collection;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    collection = MediaStore.Files.getContentUri(
+                            MediaStore.VOLUME_EXTERNAL_PRIMARY);
+                } else {
+                    collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
+                }
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                    contentValues.put(MediaStore.Audio.Media.DATA, new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), inputPath).getAbsolutePath() + "/" + outputPath);
+                }
+                Uri item = resolver.insert(collection, contentValues);
+
+                try {
+                    assert item != null;
+                    try (OutputStream out = getContentResolver().openOutputStream(item)) {
+                        InputStream in = new FileInputStream(inputPath + inputFile);
+
+                        byte[] buffer = new byte[1024];
+                        int read;
+                        while ((read = in.read(buffer)) != -1) {
+                            out.write(buffer, 0, read);
+                        }
+                        in.close();
+                        in = null;
+
+                        // delete the original file
+                        new File(inputPath + inputFile).delete();
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    publishProgress(-1);
+                }
+
+                contentValues.clear();
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    contentValues.put(MediaStore.Audio.Media.IS_PENDING, 0);
+                    resolver.update(item, contentValues, null, null);
+                }
+            }
+
+
 
         };
 

@@ -4,12 +4,12 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.database.SQLException;
 import android.os.Bundle;
-import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
+import androidx.appcompat.app.AppCompatActivity;
 
 public class AozoraBunkoAuthorList extends AppCompatActivity {
 
@@ -83,7 +83,7 @@ public class AozoraBunkoAuthorList extends AppCompatActivity {
 //	@Override
 	protected void onListItemClick(ListView l, View v, int position, long id) {
 //		super.onListItemClick(l, v, position, id);
-		Log.i(TAG, "position is " + position + ".");
+		Log.d(TAG, "position is " + position + ".");
 
 		Intent i = new Intent(this, AozoraBunkoWorksList.class);
 		Cursor c = this.mDbAdapter.fetchAuthorInfoFromPosition(position, this.phoneticCode);
