@@ -12,17 +12,20 @@ import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.http.SslError;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.webkit.SslErrorHandler;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import javax.net.ssl.HostnameVerifier;
@@ -94,7 +97,33 @@ public class AozoraBunkoViewer extends AppCompatActivity {
 				webview.setWebViewClient(new WebViewClient() {
 					@Override
 					public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
-						handler.proceed();
+						AlertDialog.Builder builder = new AlertDialog.Builder(AozoraBunkoViewer.this);
+						builder.setMessage(getString(R.string.ssl_error));
+						builder.setPositiveButton(getString(R.string.yes), new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								handler.proceed();
+							}
+						});
+						builder.setNegativeButton(getString(R.string.no), new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								handler.cancel();
+							}
+						});
+						builder.setOnKeyListener(new DialogInterface.OnKeyListener() {
+							@Override
+							public boolean onKey(DialogInterface dialog, int keyCode, KeyEvent event) {
+								if (event.getAction() == KeyEvent.ACTION_UP && keyCode == KeyEvent.KEYCODE_BACK) {
+									handler.cancel();
+									dialog.dismiss();
+									return true;
+								}
+								return false;
+							}
+						});
+						AlertDialog dialog = builder.create();
+						dialog.show();
 					}
 				});
 			}
@@ -150,7 +179,13 @@ public class AozoraBunkoViewer extends AppCompatActivity {
 			HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
 				@Override
 				public boolean verify(String s, SSLSession sslSession) {
-					return true;
+					URL url = null;
+					try {
+						url = new URL(urlStr);
+					} catch (MalformedURLException e) {
+						e.printStackTrace();
+					}
+					return (url == null ? false : url.getHost().equalsIgnoreCase(s));
 				}
 			});
 		} catch (NoSuchAlgorithmException e) {

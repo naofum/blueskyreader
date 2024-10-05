@@ -223,7 +223,13 @@ public class AozoraReaderCreateEpub extends AppCompatActivity {
                     HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
                         @Override
                         public boolean verify(String s, SSLSession sslSession) {
-                            return true;
+                            URL url = null;
+                            try {
+                                url = new URL(urlStr);
+                            } catch (MalformedURLException e) {
+                                e.printStackTrace();
+                            }
+                            return (url == null ? false : url.getHost().equalsIgnoreCase(s));
                         }
                     });
                 } catch (NoSuchAlgorithmException e) {
@@ -467,7 +473,13 @@ public class AozoraReaderCreateEpub extends AppCompatActivity {
                     HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
                         @Override
                         public boolean verify(String s, SSLSession sslSession) {
-                            return true;
+                            URL url = null;
+                            try {
+                                url = new URL(urlStr[0]);
+                            } catch (MalformedURLException e) {
+                                e.printStackTrace();
+                            }
+                            return (url == null ? false : url.getHost().equalsIgnoreCase(s));
                         }
                     });
                 } catch (NoSuchAlgorithmException e) {

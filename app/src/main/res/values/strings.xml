@@ -77,8 +77,11 @@
     <string name="file_name">Output File Name</string>
     <string name="convert_gaiji">Convert Gaiji to Character</string>
     <string name="id_for_accessibility">Add id for accessibility</string>
+    <string name="ssl_error">The SSL Certificate is invalid. Continue anyway?</string>
     <string name="progress">Progress</string>
     <string name="create">CREATE</string>
     <string name="close">CLOSE</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
     <string name="interstitial_ad_unit_id" translatable="false">ca-app-pub-3940256099942544/9214589741</string>
 </resources>

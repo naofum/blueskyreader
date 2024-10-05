@@ -183,7 +183,13 @@ public class AozoraReaderAuthorsDbAdapter {
 			HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
 				@Override
 				public boolean verify(String s, SSLSession sslSession) {
-					return true;
+					URL url = null;
+					try {
+						url = new URL(search_url);
+					} catch (MalformedURLException e) {
+						e.printStackTrace();
+					}
+					return (url == null ? false : url.getHost().equalsIgnoreCase(s));
 				}
 			});
 		} catch (NoSuchAlgorithmException e) {
