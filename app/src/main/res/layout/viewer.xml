@@ -3,7 +3,16 @@
     android:orientation="vertical"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
+    android:fitsSystemWindows="true"
     >
+    <ProgressBar
+        android:id="@+id/viewerProgressBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:indeterminate="true"
+        android:visibility="gone"
+    />
     <WebView 
         android:id="@+id/aozora_webview"
         android:layout_width="fill_parent"

@@ -3,7 +3,16 @@
     android:orientation="vertical"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
+    android:fitsSystemWindows="true"
     >
+    <ProgressBar
+        android:id="@+id/worksProgressBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:indeterminate="true"
+        android:visibility="gone"
+    />
     <ListView
         android:id="@+id/worksListView"
         android:layout_width="fill_parent"

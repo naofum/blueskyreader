@@ -1,0 +1,8 @@
+# Prevent line ending conversion for test resource files
+# These files are compared byte-for-byte with zip archive contents (LF)
+epublib-core/src/test/resources/book1/** -text
+epublib-core/src/test/resources/book2/** -text
+epublib-core/src/test/resources/book3/** -text
+epublib-core/src/test/resources/testbook1/** -text
+epublib-core/src/test/resources/*.epub binary
+epublib-core/src/test/resources/*.zip binary

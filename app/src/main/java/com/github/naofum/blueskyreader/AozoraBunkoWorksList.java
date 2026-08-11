@@ -7,6 +7,7 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
+import android.widget.ProgressBar;
 import androidx.appcompat.app.AppCompatActivity;
 
 public class AozoraBunkoWorksList extends AppCompatActivity {
@@ -18,12 +19,14 @@ public class AozoraBunkoWorksList extends AppCompatActivity {
 	private String authorName;
 
 	private ListView worksListView;
+	private ProgressBar progressBar;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.works_list);
 		worksListView = (ListView)findViewById(R.id.worksListView);
+		progressBar = (ProgressBar)findViewById(R.id.worksProgressBar);
 		worksListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
 			public void onItemClick(AdapterView parentView, View childView,
 									int position, long id) {
@@ -41,33 +44,43 @@ public class AozoraBunkoWorksList extends AppCompatActivity {
 
 			this.mDbAdapter = new AozoraReaderWorksDbAdapter(this);
 			this.mDbAdapter.open();
-			
-			Cursor worksListCursor = null;
-			
-			worksListCursor = this.mDbAdapter.fetchWorksList(this.authorId);
+
+			Cursor worksListCursor = this.mDbAdapter.fetchWorksList(this.authorId);
 			if (worksListCursor.getCount() == 0) {
 				worksListCursor.close();
-				this.mDbAdapter.updateWorksDB(this.authorId);
-				worksListCursor = this.mDbAdapter.fetchWorksList(this.authorId);
+				progressBar.setVisibility(View.VISIBLE);
+				this.mDbAdapter.updateWorksDB(this.authorId, () -> {
+					progressBar.setVisibility(View.GONE);
+					fetchWorksList();
+				});
+			} else {
+				populateList(worksListCursor);
 			}
-			
-			ArrayAdapter<String> mAdapter = new ArrayAdapter<String>(this, R.layout.works_list, R.id.works_row);
-			
-			if (worksListCursor != null) {
-				startManagingCursor(worksListCursor);
-				worksListCursor.moveToFirst();
-				do {
-					String addStr = new String();
-					addStr = worksListCursor.getString(1)
-						+ "　（"
-						+ this.mDbAdapter.getKanazukaiType(worksListCursor.getLong(2))
-						+ "）";
-					mAdapter.add(addStr);									
-				} while (worksListCursor.moveToNext());
-			}
-
-			worksListView.setAdapter(mAdapter);
 		}
+	}
+
+	private void fetchWorksList() {
+		Cursor worksListCursor = this.mDbAdapter.fetchWorksList(this.authorId);
+		populateList(worksListCursor);
+	}
+
+	private void populateList(Cursor worksListCursor) {
+		ArrayAdapter<String> mAdapter = new ArrayAdapter<String>(this, R.layout.works_list, R.id.works_row);
+
+		if (worksListCursor != null) {
+			startManagingCursor(worksListCursor);
+			worksListCursor.moveToFirst();
+			do {
+				String addStr = new String();
+				addStr = worksListCursor.getString(1)
+					+ "　（"
+					+ this.mDbAdapter.getKanazukaiType(worksListCursor.getLong(2))
+					+ "）";
+				mAdapter.add(addStr);
+			} while (worksListCursor.moveToNext());
+		}
+
+		worksListView.setAdapter(mAdapter);
 	}
 
 	@Override

@@ -7,10 +7,9 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.security.NoSuchAlgorithmException;
-import java.security.cert.CertificateException;
 import java.util.ArrayList;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -20,17 +19,9 @@ import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.database.sqlite.SQLiteStatement;
-import android.os.AsyncTask;
-import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
-
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-import java.security.cert.X509Certificate;
 
 public class AozoraReaderAuthorsDbAdapter {
 
@@ -112,10 +103,7 @@ public class AozoraReaderAuthorsDbAdapter {
     /**
      * Create an Authors SQLite DB corresponding to phonetic code.
      */
-    public boolean createAuthorsDB() {
-    	boolean retvalue = true;
-    	int index = 0;
-    	
+    public void createAuthorsDB(Runnable onComplete) {
     	ArrayList<String> url_array = new ArrayList<String>();
     	url_array.add("https://www.aozora.gr.jp/index_pages/person_a.html");
     	url_array.add("https://www.aozora.gr.jp/index_pages/person_ka.html");
@@ -128,83 +116,35 @@ public class AozoraReaderAuthorsDbAdapter {
     	url_array.add("https://www.aozora.gr.jp/index_pages/person_wa.html");
     	url_array.add("https://www.aozora.gr.jp/index_pages/person_zz.html");
 
-    	for (String url:url_array) {
-    		retvalue = (retvalue & createAuthorsDBAsync(url, index));
-    		index += 1;
-    	}
-    	
-    	return retvalue;
+    	ExecutorService executor = Executors.newSingleThreadExecutor();
+    	Handler handler = new Handler(Looper.getMainLooper());
+    	executor.execute(() -> {
+    		int index = 0;
+    		for (String url : url_array) {
+    			createAuthorsDB(url, index);
+    			index++;
+    		}
+    		handler.post(onComplete);
+    	});
+    	executor.shutdown();
     }
 
-	public boolean createAuthorsDBAsync(final String search_url, int index) {
-		AsyncTask<String, Void, Boolean> task = new AsyncTask<String, Void, Boolean>(){
-
-			@Override
-			protected Boolean doInBackground(String... params) {
-				return createAuthorsDB(params[0], Integer.valueOf(params[1]));
-			}
-
-		};
-		try {
-			return task.execute(search_url, String.valueOf(index)).get();
-		} catch (InterruptedException e) {
-			return false;
-		} catch (ExecutionException e) {
-			return false;
-		}
+	public void createAuthorsDBAsync(final String search_url, int index, Runnable onComplete) {
+		ExecutorService executor = Executors.newSingleThreadExecutor();
+		Handler handler = new Handler(Looper.getMainLooper());
+		executor.execute(() -> {
+			createAuthorsDB(search_url, index);
+			handler.post(onComplete);
+		});
+		executor.shutdown();
 	}
 
     public boolean createAuthorsDB(String search_url, int index) {
     	boolean retvalue = true;
 
-		//TODO for old Android compatibility
-		SSLContext sslContext = null;
-		try {
-			TrustManager[] tm = {
-					new X509TrustManager() {
-						@Override
-						public void checkClientTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
-
-						}
-
-						@Override
-						public void checkServerTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
-
-						}
-
-						@Override
-						public X509Certificate[] getAcceptedIssuers() {
-							return new X509Certificate[0];
-						}
-					}
-			};
-			sslContext = SSLContext.getInstance("TLS");
-			sslContext.init(null, tm, null);
-			HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
-				@Override
-				public boolean verify(String s, SSLSession sslSession) {
-					URL url = null;
-					try {
-						url = new URL(search_url);
-					} catch (MalformedURLException e) {
-						e.printStackTrace();
-					}
-					return (url == null ? false : url.getHost().equalsIgnoreCase(s));
-				}
-			});
-		} catch (NoSuchAlgorithmException e) {
-			e.printStackTrace();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-
 		try {
     		URL url = new URL(search_url);
     		HttpURLConnection http = (HttpURLConnection) url.openConnection();
-			if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
-				http = (HttpsURLConnection) http;
-				((HttpsURLConnection) http).setSSLSocketFactory(sslContext.getSocketFactory());
-			}
 			http.setRequestMethod("GET");
 			http.connect();
 			InputStream in = http.getInputStream();
@@ -261,15 +201,15 @@ public class AozoraReaderAuthorsDbAdapter {
 	 * @param searchUrl
 	 * @param phoneticCode  
      */
-    public boolean updateAuthorsDB(String searchUrl, int phoneticCode) {
-    	return createAuthorsDBAsync(searchUrl, phoneticCode);
+    public void updateAuthorsDB(String searchUrl, int phoneticCode, Runnable onComplete) {
+    	createAuthorsDBAsync(searchUrl, phoneticCode, onComplete);
     }
     
     private void insertAuthors(int authorId, int topletterId, String authorName) {
     	SQLiteDatabase db = mDbHelper.getWritableDatabase();
     	Log.d(TAG, "Top letter ID " + topletterId + " author_id " + authorId + " author name " + authorName);
 
-    	if (authorInfoExist(authorId, db) == true) {
+    	if (authorInfoExist(authorId, db)) {
     		return; // Here is duplication check. Since author Id is guaranteed as uniquely, so nothing to do is here.
     	}
     	

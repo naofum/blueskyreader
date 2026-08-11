@@ -8,6 +8,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ListView;
+import android.widget.ProgressBar;
 import android.widget.SimpleCursorAdapter;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -22,12 +23,14 @@ public class AozoraBunkoAuthorList extends AppCompatActivity {
 	private int phoneticCode;
 
 	private ListView authorListView;
+	private ProgressBar progressBar;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.author_list);
 		authorListView = (ListView)findViewById(R.id.authorListView);
+		progressBar = (ProgressBar)findViewById(R.id.authorProgressBar);
 		authorListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
 			public void onItemClick(AdapterView parentView, View childView,
 									int position, long id) {
@@ -51,26 +54,37 @@ public class AozoraBunkoAuthorList extends AppCompatActivity {
 				authorListCursor = this.mDbAdapter.fetchAuthorStringNameList(phoneticCode);
 				if (authorListCursor.getCount() == 0) {
 					authorListCursor.close();
-					this.mDbAdapter.updateAuthorsDB(searchUrl, phoneticCode);
-					authorListCursor = this.mDbAdapter.fetchAuthorStringNameList(phoneticCode);
+					progressBar.setVisibility(View.VISIBLE);
+					this.mDbAdapter.updateAuthorsDB(searchUrl, phoneticCode, () -> {
+						progressBar.setVisibility(View.GONE);
+						try {
+							Cursor cursor = mDbAdapter.fetchAuthorStringNameList(phoneticCode);
+							populateAuthorList(cursor);
+						} catch (SQLException e) {
+							e.printStackTrace();
+						}
+					});
+				} else {
+					populateAuthorList(authorListCursor);
 				}
 			} catch (SQLException e) { // This exception is caught when DB file doesn't exist.
 				// TODO retry? showing error message?
 				e.printStackTrace();
-			} finally {
-				if (authorListCursor != null) {
-					
-					startManagingCursor(authorListCursor);
-					// Create an array to specify the fields we want to display in the list (only AUTHORNAME)
-					String[] from = new String[]{AozoraReaderAuthorsDbAdapter.KEY_AUTHORNAME};
-					// and an array of the fields we want to bind those fields to (in this case just text1)
-					int[] to = new int[]{R.id.author_row};
-		        
-					SimpleCursorAdapter mAdapter = new SimpleCursorAdapter(this, R.layout.author_list, 
-							authorListCursor, from, to); 
-					authorListView.setAdapter(mAdapter);
-				}
 			}
+		}
+	}
+
+	private void populateAuthorList(Cursor authorListCursor) {
+		if (authorListCursor != null) {
+			startManagingCursor(authorListCursor);
+			// Create an array to specify the fields we want to display in the list (only AUTHORNAME)
+			String[] from = new String[]{AozoraReaderAuthorsDbAdapter.KEY_AUTHORNAME};
+			// and an array of the fields we want to bind those fields to (in this case just text1)
+			int[] to = new int[]{R.id.author_row};
+
+			SimpleCursorAdapter mAdapter = new SimpleCursorAdapter(this, R.layout.author_list,
+					authorListCursor, from, to);
+			authorListView.setAdapter(mAdapter);
 		}
 	}
 	

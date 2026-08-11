@@ -7,8 +7,8 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.security.NoSuchAlgorithmException;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,18 +18,9 @@ import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.database.sqlite.SQLiteStatement;
-import android.os.AsyncTask;
-import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
-
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
 
 /**
  * @author abekatsu
@@ -110,22 +101,14 @@ public class AozoraReaderWorksDbAdapter {
         mDbHelper.close();
     }
 
-	public boolean createWorksDBAsync(final String search_url, long authorId) {
-		AsyncTask<String, Void, Boolean> task = new AsyncTask<String, Void, Boolean>(){
-
-			@Override
-			protected Boolean doInBackground(String... params) {
-				return createWorksDB(params[0], Long.valueOf(params[1]));
-			}
-
-		};
-		try {
-			return task.execute(search_url, String.valueOf(authorId)).get();
-		} catch (InterruptedException e) {
-			return false;
-		} catch (ExecutionException e) {
-			return false;
-		}
+	public void createWorksDBAsync(final String search_url, long authorId, Runnable onComplete) {
+		ExecutorService executor = Executors.newSingleThreadExecutor();
+		Handler handler = new Handler(Looper.getMainLooper());
+		executor.execute(() -> {
+			createWorksDB(search_url, authorId);
+			handler.post(onComplete);
+		});
+		executor.shutdown();
 	}
 
 	/**
@@ -137,54 +120,9 @@ public class AozoraReaderWorksDbAdapter {
     public boolean createWorksDB(String search_url, long authorId) {
     	boolean retvalue = false;
 
-		//TODO for old Android compatibility
-		SSLContext sslContext = null;
-		try {
-			TrustManager[] tm = {
-					new X509TrustManager() {
-						@Override
-						public void checkClientTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
-
-						}
-
-						@Override
-						public void checkServerTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
-
-						}
-
-						@Override
-						public X509Certificate[] getAcceptedIssuers() {
-							return new X509Certificate[0];
-						}
-					}
-			};
-			sslContext = SSLContext.getInstance("TLS");
-			sslContext.init(null, tm, null);
-			HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
-				@Override
-				public boolean verify(String s, SSLSession sslSession) {
-					URL url = null;
-					try {
-						url = new URL(search_url);
-					} catch (MalformedURLException e) {
-						e.printStackTrace();
-					}
-					return (url == null ? false : url.getHost().equalsIgnoreCase(s));
-				}
-			});
-		} catch (NoSuchAlgorithmException e) {
-			e.printStackTrace();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-
 		try {
     		URL url = new URL(search_url);
     		HttpURLConnection http = (HttpURLConnection) url.openConnection();
-			if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
-				http = (HttpsURLConnection) http;
-				((HttpsURLConnection) http).setSSLSocketFactory(sslContext.getSocketFactory());
-			}
     		http.setRequestMethod("GET");
 			http.connect();
 			InputStream in = http.getInputStream();
@@ -234,10 +172,9 @@ public class AozoraReaderWorksDbAdapter {
 		return retvalue;
     }
 
-	public void updateWorksDB(long authorId) {
-		String searchUrl = new String();
-		searchUrl = "https://www.aozora.gr.jp/index_pages/person" + authorId + ".html";
-		createWorksDBAsync(searchUrl, authorId);
+	public void updateWorksDB(long authorId, Runnable onComplete) {
+		String searchUrl = "https://www.aozora.gr.jp/index_pages/person" + authorId + ".html";
+		createWorksDBAsync(searchUrl, authorId, onComplete);
 	}
 
     private void insertWorks(long authorId, long worksId, String worksTitle, String kanazukai, String location) {
@@ -246,7 +183,7 @@ public class AozoraReaderWorksDbAdapter {
     	Log.d(TAG, "Works ID " + worksId+ " Title " + worksTitle + " Kanazukai " + kanazukai);
     	Log.d(TAG, "Loc " + location);
     	
-    	if (worksInfoExist(authorId, worksId, db) == true) {
+    	if (worksInfoExist(authorId, worksId, db)) {
     		return; // Here is duplication check. Since works Id is guaranteed as uniquely, so nothing to do is here.
     	}
     	

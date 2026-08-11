@@ -5,11 +5,10 @@ apply plugin: 'com.android.library'
 
 android {
     namespace 'nl.siegmann.epublib'
-    compileSdk 35
+    compileSdk 37
 
     defaultConfig {
         minSdk 21
-        targetSdk 35
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -27,16 +26,25 @@ android {
     }
     testOptions {
         unitTests.returnDefaultValues = true
+        targetSdk 37
+    }
+    lint {
+        targetSdk 37
     }
 }
 
 dependencies {
     testImplementation 'junit:junit:4.13.2'
-    testImplementation 'org.mockito:mockito-core:5.14.0'
+    testImplementation 'org.mockito:mockito-core:5.23.0'
     testImplementation 'net.sf.kxml:kxml2:2.3.0'
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     implementation 'stax:stax-api:1.0.1'
     implementation 'org.slf4j:slf4j-android:1.7.36'
-    implementation 'androidx.appcompat:appcompat:1.7.0'
-    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.2'
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
+}
+
+configurations.implementation {
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'
 }
